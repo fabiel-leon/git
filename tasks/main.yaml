@@ -1,0 +1,149 @@
+---
+
+- name: Create Web Admin Group
+  group: name={{ item }}
+  with_items: "{{ default_groups }}"
+  become: yes
+
+# mkpasswd --method=SHA-512 gitPassword123*
+- name: Add git User to Web Admin Group
+  user:
+    name:   git
+    groups: "{{ item }}"
+    password: $6$432rPmgK6nVvw$dZ9.qK86xXGJMlnttW/vsqeu3RnSY9JDkOCQ0Ij0WWAG.N458FOQPNx/wuMdXATrtl1IZVfOZqX3ct8JNn1ga0
+    append: yes
+    createhome: yes
+    shell: /bin/bash
+  with_items: "{{ default_groups }}"
+  become: yes
+  register: group_added
+
+- name: Set authorized key for user git copying it from current user
+  authorized_key:
+    user: git
+    state: present
+    key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+  become: yes
+
+
+- name: General | Instalación de git - acl y node
+  apt: 
+    name: "{{ item }}" 
+    state: latest
+  with_items: 
+   - git
+   - acl
+   - nodejs
+   - node-bindings
+  become: yes 
+
+
+ # sudo apt-get install gcc g++ make
+
+# - debug: msg="havilitar el task de istalar forever globally"
+
+- name: Install forever node.js package globally.
+  npm:
+    name: "{{ item }}"
+    global: yes
+    # executable: "{{ nvm_root }}/versions/node/{{ node_version }}/bin/npm"
+  # environment:
+  #   PATH: "{{ node_path }}:{{ ansible_env.PATH }}"
+  with_items:
+    - npm
+    - forever
+    # - strong-pm
+
+ # sl-pm-install --http-auth admin:foobar -p 8080 -set-env NODE_ENV=production
+ # sudo /sbin/initctl start strong-pm
+# sudo sl-pm-install --systemd --http-auth admin:foobar -p 8080 -set-env NODE_ENV=production
+ # sudo /usr/bin/systemctl start strong-pm
+# 
+# sudo /usr/bin/systemctl status strong-pm
+# 
+#crear git repo
+
+- name: Create Site Directory
+  file: path={{ master_dir }} state=directory mode=02775
+  become: yes
+
+- name: Allow git to Write to HTTP Root
+  acl:
+    name: "{{ master_dir }}"
+    etype: group
+    entity: web-admin
+    permissions: rwx
+    state: present
+  become: yes
+
+- name: Create WORK_TREE Directory
+  file: 
+   path: "{{ master_dir }}/{{repo}}" 
+   state: directory 
+   mode: 777
+   owner: git
+   group: web-admin
+  become: yes
+
+- name: Allow git to Write to HTTP Root
+  acl:
+    name: "{{ master_dir }}/{{ repo }}"
+    etype: group
+    entity: web-admin
+    permissions: rwx
+    state: present
+  become: yes
+
+# - name:  Set owner of WORK_TREE folder for create repo bare
+#   file:
+#     path: "{{ master_dir }}/{{repo}}"
+#     state: directory
+
+# - name:  Set remove git folder for create repo bare
+#   file:
+#     path: "{{ http_root }}/{{domain}}"
+#     owner: git
+#     state: absent
+
+- name: Create git repo
+  command: git init --bare {{ repo_dir }} creates="{{ repo_dir }}"
+  become: yes 
+
+- name:  Set git repo permisos
+  file:
+    path: "{{ repo_dir }}"
+    # path: "{{ http_root }}/{{domain}}"
+    owner: git
+    group: git
+    recurse: yes
+    state: directory
+    mode: "u=rwx,g=rwx,o=rwx"
+
+- name: create post-receive git hook
+  template: 
+   owner: git
+   group: git
+   src: post-receive 
+   dest: "{{ repo_dir }}/hooks/post-receive"
+   mode: "u=rwx,g=rwx,o=rwx"
+
+- name: Hacer en la consola del proyecto a subir a git
+  debug: 
+    msg: "git remote add miserver ssh://{{ inventory_hostname }}{{ repo_dir }}"
+
+- debug: msg="git push miserver +master:refs/heads/master"
+
+- debug: msg="git push miserver"
+# - name:  Set hook executable
+#   file:
+#     path: "/home/git/{{domain}}/hooks/post-receive"
+#     owner: git
+#     group: git
+#     mode: "u+rwx,g+rx,o+rx"
+
+
+
+
+
+
+

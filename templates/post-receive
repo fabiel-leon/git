@@ -1,0 +1,57 @@
+#!/bin/sh
+# PATH="[[ node_path ]]:{{ ansible_env.PATH }}"
+
+echo "processing post receive hook"
+
+GIT_WORK_TREE={{ work_dir }} git checkout -f
+
+# unset GIT_DIR
+
+# LAST_COMMIT=`git log -1 | awk 'NR==1 {print $2}'`
+
+# echo last commit $LAST_COMMIT
+cd {{ work_dir }}
+
+if [ -f package.json ]; then
+	echo "installing npm dependencies"
+	NODE_ENV=production npm install --only=prod
+	# rc=$?
+	# if [[ $rc != 0 ]]; then
+	# 	echo "ERROR: npm exited with code $rc"
+	# 	# git reset $LAST_COMMIT --hard
+	# 	exit $rc
+	# fi
+	echo "stopping server"
+	forever stop 0
+	echo "starting application"
+	NODE_ENV=production  forever --killSignal=SIGINT start cluster.js
+fi
+
+
+
+# update working tree
+# [[ var ]] is jinja template
+# cd [[pod_dir ]]/apps/[[app]]
+# unset GIT_DIR
+# # save last commit
+# LAST_COMMIT=`git log -1 | awk 'NR==1 {print $2}'`
+# # this is basiclly a force pull
+# # so even if you force pushed this can still work
+# git fetch --all
+# git reset --hard origin/master
+
+# # if has .podhook, execute that; otherwise default
+# if [ -f .podhook ]; then
+# 	bash .podhook
+# 	rc=$?
+# 	if [[ $rc != 0 ]]; then
+# 		echo "`tput setaf 1`ERROR: .podhook exited with code $rc, working tree is reverted.`tput sgr0`"
+# 		git reset $LAST_COMMIT --hard
+# 		exit $rc
+# 	fi
+# elif [ -f package.json ]; then
+# 	npm install
+# fi
+
+# pod stop [[app]]
+# pod start [[app]]

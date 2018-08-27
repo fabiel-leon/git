@@ -1,0 +1,6 @@
+---
+#node_path: /usr/local/nvm/versions/node/v8.11.1/bin
+master_dir: /srv/http
+repo: promocion.bid
+work_dir: "{{master_dir}}/{{repo}}"
+repo_dir: "/home/git/workspace/{{repo}}"
